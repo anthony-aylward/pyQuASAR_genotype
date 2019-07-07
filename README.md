@@ -1,5 +1,6 @@
-# wasp_map
-Command line tool for genotyping with QuASAR
+# pyQuASAR_genotype
+Command line tool for genotyping with QuASAR. Infer genotypes from ChIP-seq or
+ATAC-seq data.
 
 ## Installation
 
