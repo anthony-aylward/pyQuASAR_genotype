@@ -21,7 +21,6 @@ from multiprocessing import Pool
 
 
 
-
 # Functions ====================================================================
 
 def prepare_quasar_input(
