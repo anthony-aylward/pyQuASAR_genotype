@@ -5,17 +5,17 @@
 
 # Imports ======================================================================
 
-import argparse
-import functools
 import os
 import os.path
-import pickle
+import pyhg19
 import pyQuASAR
 import seqalign
 import subprocess
 import tempfile
 import wasp_map
 
+from argparse import ArgumentParser
+from functools import partial
 from multiprocessing import Pool
 
 
@@ -81,6 +81,7 @@ def prepare_quasar_input(
     str
         Path to a QuASAR input file
     """
+
     input_file_path = (
         input_file_path.split(',') if ',' in input_file_path
         else input_file_path
@@ -211,7 +212,7 @@ def get_genotypes(
             *filter(
                 None,
                 pool.map(
-                    functools.partial(
+                    partial(
                         prepare_quasar_input,
                         bam_dir=bam_dir if bam_dir else temp_dir_name,
                         intermediate_dir=(
@@ -238,7 +239,7 @@ def get_genotypes(
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description=(
             'Infer genotypes from ChIP-seq or ATAC-seq data using QuASAR'
         )
@@ -296,20 +297,14 @@ def parse_arguments():
     align_group.add_argument(
         '--reference',
         metavar='<path/to/reference_genome.fa>',
-        default='/home/joshchiou/references/ucsc.hg19.fasta',
-        help=(
-            'Path to reference genome prepared for BWA '
-            '[/home/joshchiou/references/ucsc.hg19.fasta]'
-        )
+        default=pyhg19.PATH,
+        help=f'Path to reference genome prepared for BWA [{pyhg19.PATH}]'
     )
     align_group.add_argument(
         '--blacklist',
         metavar='<path/to/blacklist.bed>',
-        default='/home/data/encode/ENCODE.hg19.blacklist.bed',
-        help=(
-            'Path to ENCODE blacklist file '
-            '[/home/data/encode/ENCODE.hg19.blacklist.bed]'
-        )
+        default=pyhg19.BLACKLIST,
+        help=f'Path to ENCODE blacklist file [{pyhg19.BLACKLIST}]'
     )
     align_group.add_argument(
         '--paired-end',
@@ -338,11 +333,8 @@ def parse_arguments():
     quasar_group.add_argument(
         '--snps',
         metavar='<path/to/snps_file.bed>',
-        default='/home/data/QuASAR/1KG_SNPs_filt.bed',
-        help=(
-            'BED file containing 1KGP SNPs '
-            '[/home/data/QuASAR/1KG_SNPs_filt.bed]'
-        )
+        default=pyQuASAR.SNPS_BED_PATH,
+        help=f'BED file containing 1KGP SNPs [{pyQuASAR.SNPS_BED_PATH}]'
     )
     quasar_group.add_argument(
         '--skip-preprocessing',
