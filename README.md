@@ -4,6 +4,8 @@ ATAC-seq data.
 
 ## Installation
 
+First, follow the installation steps for [wasp_map](https://github.com/anthony-aylward/wasp_map) and [pyQuASAR](https://github.com/anthony-aylward/pyQuASAR) Then:
+
 ```sh
 pip3 install pyQuASAR_genotype
 ```
