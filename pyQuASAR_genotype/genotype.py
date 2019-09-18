@@ -123,7 +123,7 @@ def prepare_quasar_input(
             sa.apply_quality_filter()
             sa.remove_supplementary_alignments()
             sa.remove_blacklisted_reads(blacklist_path=blacklist_path)
-            sa.samtools_sort(memory_limit=memory * processes)
+            sa.samtools_sort(memory_limit=memory)
             sa.samtools_index()
             sa.restrict_chromosomes(*(tuple(range(1, 23)) + ('X',)))
             sa.samtools_index()
@@ -223,7 +223,7 @@ def get_genotypes(
                         blacklist_path=blacklist_path,
                         snps_path=snps_path,
                         processes=max(1, int(processes / n_input_files)),
-                        memory=memory,
+                        memory=memory / min(processes, n_input_files),
                         paired_end=paired_end,
                         skip_preprocessing=skip_preprocessing,
                         write_bam=write_bam,
@@ -276,15 +276,15 @@ def parse_arguments():
         '--processes',
         metavar='<int>',
         type=int,
-        default=4,
-        help='Number of processes to use [4]'
+        default=1,
+        help='Number of processes to use [1]'
     )
     align_group.add_argument(
         '--memory',
         metavar='<int>',
         type=int,
         default=8,
-        help='Maximum memory per thread in GB [8]'
+        help='Maximum memory usage in GB [8]'
     )
     align_group.add_argument(
         '--quality',
