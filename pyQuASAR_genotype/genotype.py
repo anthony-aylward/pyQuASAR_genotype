@@ -19,10 +19,6 @@ from functools import partial
 from multiprocessing import Pool
 
 
-# Constants ====================================================================
-
-TMPDIR = os.environ.get('TMPDIR')
-
 
 
 # Functions ====================================================================
@@ -369,8 +365,7 @@ def parse_arguments():
     config_group.add_argument(
         '--tmp-dir',
         metavar='<temp/file/dir/>',
-        default=TMPDIR,
-        help=f'directory to use for temporary files [{TMPDIR}]'
+        help='directory to use for temporary files'
     )
     return parser.parse_args()
 
