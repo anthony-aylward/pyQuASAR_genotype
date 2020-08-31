@@ -149,7 +149,8 @@ def prepare_quasar_input(
 
 
 def get_genotypes(
-    input_list: list,
+    single_end: list,
+    paired_end: list,
     bam_dir: str,
     intermediate_dir: str,
     reference_genome_path: str,
@@ -158,7 +159,6 @@ def get_genotypes(
     snps_path: str,
     processes: int,
     memory: int,
-    paired_end: list,
     skip_preprocessing: bool = False,
     write_bam: bool = False,
     algorithm_switch_bp: int = 70,
@@ -169,8 +169,10 @@ def get_genotypes(
     
     Parameters
     ----------
-    input_list : list
+    single_end : list
         List of single-end input files
+    paired_end : list
+        List of paired-end input files
     bam_dir : str
         Directory to write BAM files
     intermediate_dir : str
@@ -187,8 +189,6 @@ def get_genotypes(
         Number of processes
     memory : int
         Memory limit
-    paired_end : list
-        List of paired-end input files
     skip_preprocessing : bool
         Indicator to skip preprocessing steps
     write_bam : bool
@@ -201,7 +201,7 @@ def get_genotypes(
         directory to use for temporary files
     """
     
-    n_single_end = len(input_list)
+    n_single_end = len(single_end)
     n_paired_end = len(paired_end)
 
     def prepare_quasar_input_params(n, pe=False):
@@ -225,7 +225,7 @@ def get_genotypes(
             'temp_dir': temp_dir
         }
     
-    with': Pool(processes=min(processes, max(n_single_end, n_paired_end))) as (
+    with Pool(processes=min(processes, max(n_single_end, n_paired_end))) as (
         pool
     ), tempfile.TemporaryDirectory(dir=temp_dir) as (
         temp_dir_name
@@ -258,10 +258,17 @@ def parse_arguments():
     )
     io_group = parser.add_argument_group('I/O arguments')
     io_group.add_argument(
-        'input',
-        metavar='<path/to/sequencing_data.{fa/fq/bam}>',
+        'single_end',
+        metavar='<path/to/single_end_data.{fa/fq/bam}>',
         nargs='*',
-        help='Paths to input FASTQ or BAM files'
+        help='Paths to single-end FASTQ or BAM files'
+    )
+    io_group.add_argument(
+        '--paired-end',
+        metavar='<path/to/paired_end_data.{fa/fq/bam}>',
+        nargs='+',
+        default=[],
+        help='Paths to paired-end FASTQ or BAM files'
     )
     io_group.add_argument(
         '--bam-dir',
@@ -317,11 +324,6 @@ def parse_arguments():
         metavar='<path/to/blacklist.bed>',
         default=pyhg19.BLACKLIST,
         help=f'Path to ENCODE blacklist file [{pyhg19.BLACKLIST}]'
-    )
-    align_group.add_argument(
-        '--paired-end',
-        nargs='+',
-        help='paired-end input files'
     )
     align_group.add_argument(
         '--write-bam',
@@ -380,14 +382,18 @@ def parse_arguments():
         metavar='<temp/file/dir/>',
         help='directory to use for temporary files'
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if len(args.single_end) + len(args.paired_end) == 0:
+        raise RuntimeError('No input files provided')
+    return args
 
 
 def main():
     args = parse_arguments()
     vcf = pyQuASAR.genotype_to_vcf(
         get_genotypes(
-            args.input,
+            args.single_end,
+            args.paired_end,
             args.bam_dir,
             args.inter_dir,
             args.reference,
@@ -396,7 +402,6 @@ def main():
             args.snps,
             args.processes,
             args.memory,
-            paired_end=args.paired_end,
             skip_preprocessing=args.skip_preprocessing,
             write_bam=args.write_bam,
             algorithm_switch_bp=args.algorithm_switch_bp,
