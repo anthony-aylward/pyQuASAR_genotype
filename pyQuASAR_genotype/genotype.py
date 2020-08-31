@@ -158,7 +158,7 @@ def get_genotypes(
     snps_path: str,
     processes: int,
     memory: int,
-    paired_end: bool = False,
+    paired_end: list,
     skip_preprocessing: bool = False,
     write_bam: bool = False,
     algorithm_switch_bp: int = 70,
@@ -170,7 +170,7 @@ def get_genotypes(
     Parameters
     ----------
     input_list : list
-        List of input files
+        List of single-end input files
     bam_dir : str
         Directory to write BAM files
     intermediate_dir : str
@@ -187,8 +187,8 @@ def get_genotypes(
         Number of processes
     memory : int
         Memory limit
-    paired_end : bool
-        Indicator for paired_end reads
+    paired_end : list
+        List of paired-end input files
     skip_preprocessing : bool
         Indicator to skip preprocessing steps
     write_bam : bool
@@ -201,8 +201,31 @@ def get_genotypes(
         directory to use for temporary files
     """
     
-    n_input_files = len(input_list)
-    with Pool(processes=min(processes, n_input_files)) as (
+    n_single_end = len(input_list)
+    n_paired_end = len(paired_end)
+
+    def prepare_quasar_input_params(n, pe=False):
+        return {
+            'bam_dir': bam_dir if bam_dir else temp_dir_name,
+            'intermediate_dir': (
+                intermediate_dir if intermediate_dir
+                else temp_dir_name
+            ),
+            'reference_genome_path': reference_genome_path,
+            'mapping_quality': mapping_quality,
+            'blacklist_path': blacklist_path,
+            'snps_path': snps_path,
+            'processes': max(1, int(processes / n)),
+            'memory': memory / min(processes, n),
+            'paired_end': pe,
+            'skip_preprocessing': skip_preprocessing,
+            'write_bam': write_bam,
+            'algorithm_switch_bp': algorithm_switch_bp,
+            'algorithm': algorithm,
+            'temp_dir': temp_dir
+        }
+    
+    with': Pool(processes=min(processes, max(n_single_end, n_paired_end))) as (
         pool
     ), tempfile.TemporaryDirectory(dir=temp_dir) as (
         temp_dir_name
@@ -213,25 +236,15 @@ def get_genotypes(
                 pool.map(
                     partial(
                         prepare_quasar_input,
-                        bam_dir=bam_dir if bam_dir else temp_dir_name,
-                        intermediate_dir=(
-                            intermediate_dir if intermediate_dir
-                            else temp_dir_name
-                        ),
-                        reference_genome_path=reference_genome_path,
-                        mapping_quality=mapping_quality,
-                        blacklist_path=blacklist_path,
-                        snps_path=snps_path,
-                        processes=max(1, int(processes / n_input_files)),
-                        memory=memory / min(processes, n_input_files),
-                        paired_end=paired_end,
-                        skip_preprocessing=skip_preprocessing,
-                        write_bam=write_bam,
-                        algorithm_switch_bp=algorithm_switch_bp,
-                        algorithm=algorithm,
-                        temp_dir=temp_dir
+                        **prepare_quasar_input_params(n_single_end, pe=False)
                     ),
                     input_list
+                ) + pool.map(
+                    partial(
+                        prepare_quasar_input,
+                        **prepare_quasar_input_params(n_paired_end, pe=True)
+                    ),
+                    paired_end
                 )
             )
         )
