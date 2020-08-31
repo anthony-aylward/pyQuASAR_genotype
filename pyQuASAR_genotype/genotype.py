@@ -247,7 +247,7 @@ def parse_arguments():
     io_group.add_argument(
         'input',
         metavar='<path/to/sequencing_data.{fa/fq/bam}>',
-        nargs='+',
+        nargs='*',
         help='Paths to input FASTQ or BAM files'
     )
     io_group.add_argument(
@@ -307,8 +307,8 @@ def parse_arguments():
     )
     align_group.add_argument(
         '--paired-end',
-        action='store_true',
-        help='Use for paired-end reads'
+        nargs='+',
+        help='paired-end input files'
     )
     align_group.add_argument(
         '--write-bam',
