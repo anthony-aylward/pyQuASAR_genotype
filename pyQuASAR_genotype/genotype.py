@@ -238,7 +238,7 @@ def get_genotypes(
                         prepare_quasar_input,
                         **prepare_quasar_input_params(n_single_end, pe=False)
                     ),
-                    input_list
+                    single_end
                 ) + pool.map(
                     partial(
                         prepare_quasar_input,
