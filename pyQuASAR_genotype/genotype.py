@@ -233,18 +233,22 @@ def get_genotypes(
         return pyQuASAR.genotype(
             *filter(
                 None,
-                pool.map(
-                    partial(
-                        prepare_quasar_input,
-                        **prepare_quasar_input_params(n_single_end, pe=False)
-                    ),
-                    single_end
-                ) + pool.map(
-                    partial(
-                        prepare_quasar_input,
-                        **prepare_quasar_input_params(n_paired_end, pe=True)
-                    ),
-                    paired_end
+                (
+                    pool.map(
+                        partial(
+                            prepare_quasar_input,
+                            **prepare_quasar_input_params(n_single_end, pe=False)
+                        ),
+                        single_end
+                    ) if len(single_end) > 0 else []
+                ) + (
+                    pool.map(
+                        partial(
+                            prepare_quasar_input,
+                            **prepare_quasar_input_params(n_paired_end, pe=True)
+                        ),
+                        paired_end
+                    ) if len(paired_end) > 0 else []
                 )
             )
         )
