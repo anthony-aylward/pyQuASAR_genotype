@@ -225,6 +225,38 @@ def get_genotypes(
             'temp_dir': temp_dir
         }
     
+    if n_single_end > 0:
+        with Pool(processes=min(processes, n_single_end)) as (
+            pool
+        ), tempfile.TemporaryDirectory(dir=temp_dir) as (
+            temp_dir_name
+        ):
+            single_end_quasar_input_paths = pool.map(
+                partial(
+                    prepare_quasar_input,
+                    **prepare_quasar_input_params(n_single_end, pe=False)
+                ),
+                single_end
+            )
+    else:
+        single_end_quasar_input_paths = []
+    
+    if n_paired_end > 0:
+        with Pool(processes=min(processes, n_paired_end)) as (
+            pool
+        ), tempfile.TemporaryDirectory(dir=temp_dir) as (
+            temp_dir_name
+        ):
+            paired_end_quasar_input_paths = pool.map(
+                partial(
+                    prepare_quasar_input,
+                    **prepare_quasar_input_params(n_paired_end, pe=True)
+                ),
+                paired_end
+            )
+    else:
+        paired_end_quasar_input_paths = []
+
     with Pool(processes=min(processes, max(n_single_end, n_paired_end))) as (
         pool
     ), tempfile.TemporaryDirectory(dir=temp_dir) as (
@@ -233,23 +265,7 @@ def get_genotypes(
         return pyQuASAR.genotype(
             *filter(
                 None,
-                (
-                    pool.map(
-                        partial(
-                            prepare_quasar_input,
-                            **prepare_quasar_input_params(n_single_end, pe=False)
-                        ),
-                        single_end
-                    ) if len(single_end) > 0 else []
-                ) + (
-                    pool.map(
-                        partial(
-                            prepare_quasar_input,
-                            **prepare_quasar_input_params(n_paired_end, pe=True)
-                        ),
-                        paired_end
-                    ) if len(paired_end) > 0 else []
-                )
+                single_end_quasar_input_paths + paired_end_quasar_input_paths
             )
         )
 
