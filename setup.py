@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='pyQuASAR_genotype',
-    version='0.1.6',
+    version='0.1.7',
     author='Anthony Aylward',
     author_email='aaylward@eng.ucsd.edu',
     description='Command line tool for genotyping with QuASAR',

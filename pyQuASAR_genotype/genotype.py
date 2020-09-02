@@ -204,7 +204,7 @@ def get_genotypes(
     n_single_end = len(single_end)
     n_paired_end = len(paired_end)
 
-    def prepare_quasar_input_params(n, pe=False):
+    def prepare_quasar_input_params(temp_dir_name, n, pe=False):
         return {
             'bam_dir': bam_dir if bam_dir else temp_dir_name,
             'intermediate_dir': (
@@ -225,43 +225,31 @@ def get_genotypes(
             'temp_dir': temp_dir
         }
     
-    if n_single_end > 0:
-        with Pool(processes=min(processes, n_single_end)) as (
-            pool
-        ), tempfile.TemporaryDirectory(dir=temp_dir) as (
-            temp_dir_name
-        ):
-            single_end_quasar_input_paths = pool.map(
-                partial(
-                    prepare_quasar_input,
-                    **prepare_quasar_input_params(n_single_end, pe=False)
-                ),
-                single_end
-            )
-    else:
-        single_end_quasar_input_paths = []
-    
-    if n_paired_end > 0:
-        with Pool(processes=min(processes, n_paired_end)) as (
-            pool
-        ), tempfile.TemporaryDirectory(dir=temp_dir) as (
-            temp_dir_name
-        ):
-            paired_end_quasar_input_paths = pool.map(
-                partial(
-                    prepare_quasar_input,
-                    **prepare_quasar_input_params(n_paired_end, pe=True)
-                ),
-                paired_end
-            )
-    else:
-        paired_end_quasar_input_paths = []
-
-    with Pool(processes=min(processes, max(n_single_end, n_paired_end))) as (
-        pool
-    ), tempfile.TemporaryDirectory(dir=temp_dir) as (
-        temp_dir_name
-    ):
+    with tempfile.TemporaryDirectory(dir=temp_dir) as temp_dir_name:
+        if n_single_end > 0:
+            with Pool(processes=min(processes, n_single_end)) as pool:
+                single_end_quasar_input_paths = pool.map(
+                    partial(
+                        prepare_quasar_input,
+                        **prepare_quasar_input_params(temp_dir_name, n_single_end, pe=False)
+                    ),
+                    single_end
+                )
+        else:
+            single_end_quasar_input_paths = []
+        
+        if n_paired_end > 0:
+            with Pool(processes=min(processes, n_paired_end)) as pool:
+                paired_end_quasar_input_paths = pool.map(
+                    partial(
+                        prepare_quasar_input,
+                        **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
+                    ),
+                    paired_end
+                )
+        else:
+            paired_end_quasar_input_paths = []
+        
         return pyQuASAR.genotype(
             *filter(
                 None,
