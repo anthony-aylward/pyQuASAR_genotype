@@ -37,6 +37,7 @@ def prepare_quasar_input(
     skip_preprocessing: bool,
     write_bam: bool,
     algorithm_switch_bp: int = 70,
+    library_name=None,
     algorithm=None,
     temp_dir=None
 ) -> str:
@@ -89,7 +90,7 @@ def prepare_quasar_input(
         os.path.join(
             directory,
             (
-                os.path.basename(
+                library_name if library_name else os.path.basename(
                     input_file_path if isinstance(input_file_path, str)
                     else input_file_path[0]
                 )
@@ -148,9 +149,48 @@ def prepare_quasar_input(
     )
 
 
+def prepare_quasar_input_from_metadata(
+    input_file_path: str,
+    library_name: str,
+    bam_dir: str,
+    intermediate_dir: str,
+    reference_genome_path: str,
+    mapping_quality: int,
+    blacklist_path: str,
+    snps_path: str,
+    processes: int,
+    memory: int,
+    paired_end: bool,
+    skip_preprocessing: bool,
+    write_bam: bool,
+    algorithm_switch_bp: int = 70,
+    algorithm=None,
+    temp_dir=None
+) -> str:
+    return prepare_quasar_input(
+        input_file_path=input_file_path,
+        bam_dir=bam_dir,
+        intermediate_dir=intermediate_dir,
+        reference_genome_path=reference_genome_path,
+        mapping_quality=mapping_quality,
+        blacklist_path=blacklist_path,
+        snps_path=snps_path,
+        processes=processes,
+        memory=memory,
+        paired_end=paired_end,
+        skip_preprocessing=skip_preprocessing,
+        write_bam=write_bam,
+        algorithm_switch_bp=algorithm_switch_bp,
+        library_name=library_name,
+        algorithm=library_name,
+        temp_dir=library_name
+    )
+
+
 def get_genotypes(
     single_end: list,
     paired_end: list,
+    metadata: dict,
     bam_dir: str,
     intermediate_dir: str,
     reference_genome_path: str,
@@ -173,6 +213,8 @@ def get_genotypes(
         List of single-end input files
     paired_end : list
         List of paired-end input files
+    metadata : dict
+        Dict of input file metadata
     bam_dir : str
         Directory to write BAM files
     intermediate_dir : str
@@ -202,7 +244,8 @@ def get_genotypes(
     """
     
     n_single_end = len(single_end)
-    n_paired_end = len(paired_end)
+    n_paired_end = len(paired_end) / 2
+    n_metadata = sum(len(x) for x in metadata.values())
 
     def prepare_quasar_input_params(temp_dir_name, n, pe=False):
         return {
@@ -226,34 +269,35 @@ def get_genotypes(
         }
     
     with tempfile.TemporaryDirectory(dir=temp_dir) as temp_dir_name:
-        if n_single_end > 0:
-            with Pool(processes=min(processes, n_single_end)) as pool:
-                single_end_quasar_input_paths = pool.map(
-                    partial(
-                        prepare_quasar_input,
-                        **prepare_quasar_input_params(temp_dir_name, n_single_end, pe=False)
-                    ),
-                    single_end
-                )
-        else:
-            single_end_quasar_input_paths = []
-        
-        if n_paired_end > 0:
-            with Pool(processes=min(processes, n_paired_end)) as pool:
-                paired_end_quasar_input_paths = pool.map(
-                    partial(
-                        prepare_quasar_input,
-                        **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
-                    ),
-                    paired_end
-                )
-        else:
-            paired_end_quasar_input_paths = []
+        with Pool(processes=min(processes, max(n_single_end, n_paired_end, n_metadata))) as pool:
+            single_end_quasar_input_paths = pool.map(
+                partial(
+                    prepare_quasar_input,
+                    **prepare_quasar_input_params(temp_dir_name, n_single_end, pe=False)
+                ),
+                single_end
+            )
+            paired_end_quasar_input_paths = pool.map(
+                partial(
+                    prepare_quasar_input,
+                    **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
+                ),
+                (','.join(paired_end[x:x+2]) for x in range(0, n_paired_end, 2))
+            )
+            metadata_quasar_input_paths = pool.starmap(
+                partial(
+                    prepare_quasar_input,
+                    **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
+                ),
+                ((i, l) for ex in metadata.values() for (l, i) in ex.items())
+            )
         
         return pyQuASAR.genotype(
             *filter(
                 None,
-                single_end_quasar_input_paths + paired_end_quasar_input_paths
+                single_end_quasar_input_paths
+                + paired_end_quasar_input_paths
+                + metadata_quasar_input_paths
             )
         )
 
@@ -277,6 +321,11 @@ def parse_arguments():
         nargs='+',
         default=[],
         help='Paths to paired-end FASTQ or BAM files'
+    )
+    io_group.add_argument(
+        '--metadata',
+        metavar='<path/to/metadata.json>',
+        help='path to JSON file containing input metadata'
     )
     io_group.add_argument(
         '--bam-dir',
@@ -392,7 +441,8 @@ def parse_arguments():
     )
     args = parser.parse_args()
     if len(args.single_end) + len(args.paired_end) == 0:
-        raise RuntimeError('No input files provided')
+        if not args.metadata:
+            raise RuntimeError('No input files provided')
     return args
 
 
@@ -402,6 +452,7 @@ def main():
         get_genotypes(
             args.single_end,
             args.paired_end,
+            args.metadata,
             args.bam_dir,
             args.inter_dir,
             args.reference,
