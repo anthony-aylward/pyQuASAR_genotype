@@ -276,27 +276,38 @@ def get_genotypes(
     
     with tempfile.TemporaryDirectory(dir=temp_dir) as temp_dir_name:
         with Pool(processes=min(processes, max(n_single_end, n_paired_end, n_metadata))) as pool:
-            single_end_quasar_input_paths = pool.map(
-                partial(
-                    prepare_quasar_input,
-                    **prepare_quasar_input_params(temp_dir_name, n_single_end, pe=False)
-                ),
-                single_end
-            )
-            paired_end_quasar_input_paths = pool.map(
-                partial(
-                    prepare_quasar_input,
-                    **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
-                ),
-                (','.join(paired_end[x:x+2]) for x in range(0, n_paired_end, 2))
-            )
-            metadata_quasar_input_paths = pool.starmap(
-                partial(
-                    prepare_quasar_input,
-                    **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
-                ),
-                ((i, l) for ex in metadata_dict.values() for (l, i) in ex.items())
-            )
+            if n_single_end > 0:
+                single_end_quasar_input_paths = pool.map(
+                    partial(
+                        prepare_quasar_input,
+                        **prepare_quasar_input_params(temp_dir_name, n_single_end, pe=False)
+                    ),
+                    single_end
+                )
+            else:
+                single_end_quasar_input_paths = []
+            
+            if n_paired_end > 0:
+                paired_end_quasar_input_paths = pool.map(
+                    partial(
+                        prepare_quasar_input,
+                        **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
+                    ),
+                    (','.join(paired_end[x:x+2]) for x in range(0, n_paired_end, 2))
+                )
+            else:
+                paired_end_quasar_input_paths = []
+            
+            if n_metadata > 0:
+                metadata_quasar_input_paths = pool.starmap(
+                    partial(
+                        prepare_quasar_input,
+                        **prepare_quasar_input_params(temp_dir_name, n_metadata, pe=True)
+                    ),
+                    ((i, l) for ex in metadata_dict.values() for (l, i) in ex.items())
+                )
+            else:
+                metadata_quasar_input_paths = []
         
         return pyQuASAR.genotype(
             *filter(
