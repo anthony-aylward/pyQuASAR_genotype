@@ -5,6 +5,7 @@
 
 # Imports ======================================================================
 
+import json
 import os
 import os.path
 import pyhg19
@@ -190,7 +191,7 @@ def prepare_quasar_input_from_metadata(
 def get_genotypes(
     single_end: list,
     paired_end: list,
-    metadata: dict,
+    metadata: str,
     bam_dir: str,
     intermediate_dir: str,
     reference_genome_path: str,
@@ -284,12 +285,17 @@ def get_genotypes(
                 ),
                 (','.join(paired_end[x:x+2]) for x in range(0, n_paired_end, 2))
             )
+            if not metadata:
+                metadata_dict = {}
+            else:
+                with open(metadata, 'r') as f:
+                    metadata_dict = json.load(f)
             metadata_quasar_input_paths = pool.starmap(
                 partial(
                     prepare_quasar_input,
                     **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
                 ),
-                ((i, l) for ex in metadata.values() for (l, i) in ex.items())
+                ((i, l) for ex in metadata_dict.values() for (l, i) in ex.items())
             )
         
         return pyQuASAR.genotype(
