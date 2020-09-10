@@ -246,7 +246,12 @@ def get_genotypes(
     
     n_single_end = len(single_end)
     n_paired_end = len(paired_end) / 2
-    n_metadata = sum(len(x) for x in metadata.values())
+    if not metadata:
+        metadata_dict = {}
+    else:
+        with open(metadata, 'r') as f:
+            metadata_dict = json.load(f)
+    n_metadata = sum(len(x) for x in metadata_dict.values())
 
     def prepare_quasar_input_params(temp_dir_name, n, pe=False):
         return {
@@ -285,11 +290,6 @@ def get_genotypes(
                 ),
                 (','.join(paired_end[x:x+2]) for x in range(0, n_paired_end, 2))
             )
-            if not metadata:
-                metadata_dict = {}
-            else:
-                with open(metadata, 'r') as f:
-                    metadata_dict = json.load(f)
             metadata_quasar_input_paths = pool.starmap(
                 partial(
                     prepare_quasar_input,
