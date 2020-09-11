@@ -17,6 +17,7 @@ import wasp_map
 
 from argparse import ArgumentParser
 from functools import partial
+from itertools import groupby
 from multiprocessing import Pool
 
 
@@ -188,6 +189,35 @@ def prepare_quasar_input_from_metadata(
     )
 
 
+def generate_collated_metadata(metadata_dict):
+    for e, experiment in metadata_dict.items():
+        for l, library in experiment['libraries'].items():
+            if isinstance(library, str):
+                yield (
+                    os.path.join(experiment['dir'], f"{library}.fastq.gz"),
+                    '.'.join((experiment['assay'], l))
+                )
+            elif isinstance(library, list) and len(library) == 2:
+                yield (
+                    ','.join(os.path.join(experiment['dir'], f"{lib}.fastq.gz") for lib in library),
+                    '.'.join((experiment['assay'], l))
+                )
+
+
+def count_input_paths(metadata_item):
+    return len(metadata_item[0].split(','))
+
+
+def collate_metadata(metadata_dict):
+    return tuple(
+        g for k, g in sorted(
+            (k, tuple(g)) for k, g in groupby(
+                generate_collated_metadata(metadata_dict), key=count_input_paths
+            )
+        )
+    )
+
+
 def get_genotypes(
     single_end: list,
     paired_end: list,
@@ -251,7 +281,7 @@ def get_genotypes(
     else:
         with open(metadata, 'r') as f:
             metadata_dict = json.load(f)
-    n_metadata = sum(len(x) for x in metadata_dict.values())
+    n_metadata = sum(len(x['libraries']) for x in metadata_dict.values())
 
     def prepare_quasar_input_params(temp_dir_name, n, pe=False):
         return {
@@ -299,22 +329,36 @@ def get_genotypes(
                 paired_end_quasar_input_paths = []
             
             if n_metadata > 0:
-                metadata_quasar_input_paths = pool.starmap(
-                    partial(
-                        prepare_quasar_input,
-                        **prepare_quasar_input_params(temp_dir_name, n_metadata, pe=True)
-                    ),
-                    ((i, l) for ex in metadata_dict.values() for (l, i) in ex.items())
-                )
-            else:
-                metadata_quasar_input_paths = []
-        
+                meta_se, meta_pe = collate_metadata(metadata_dict)
+                if len(meta_se) > 0:
+                    metadata_quasar_input_paths_se = pool.starmap(
+                        partial(
+                            prepare_quasar_input,
+                            **prepare_quasar_input_params(temp_dir_name, len(meta_se), pe=False)
+                        ),
+                        meta_se
+                    )
+                else:
+                    metadata_quasar_input_paths_se = []
+                if len(meta_pe) > 0:
+                    metadata_quasar_input_paths_pe = pool.starmap(
+                        partial(
+                            prepare_quasar_input,
+                            **prepare_quasar_input_params(temp_dir_name, len(meta_pe), pe=False)
+                        ),
+                        meta_pe
+                    )
+                else:
+                    metadata_quasar_input_paths_pe = []
+            else: 
+                metadata_quasar_input_paths_se, metadata_quasar_input_paths_pe = [], []
         return pyQuASAR.genotype(
             *filter(
                 None,
                 single_end_quasar_input_paths
                 + paired_end_quasar_input_paths
-                + metadata_quasar_input_paths
+                + metadata_quasar_input_paths_se
+                + metadata_quasar_input_paths_pe
             )
         )
 
