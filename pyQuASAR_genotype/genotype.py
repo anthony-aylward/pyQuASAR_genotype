@@ -194,12 +194,12 @@ def generate_collated_metadata(metadata_dict):
         for l, library in experiment['libraries'].items():
             if isinstance(library, str):
                 yield (
-                    os.path.join(experiment['dir'], f"{library}.fastq.gz"),
+                    os.path.join(experiment['dir'], f"{experiment['assay']}.{library}.fastq.gz"),
                     '.'.join((experiment['assay'], l))
                 )
             elif isinstance(library, list) and len(library) == 2:
                 yield (
-                    ','.join(os.path.join(experiment['dir'], f"{lib}.fastq.gz") for lib in library),
+                    ','.join(os.path.join(experiment['dir'], f"{experiment['assay']}.{lib}.fastq.gz") for lib in library),
                     '.'.join((experiment['assay'], l))
                 )
 
