@@ -214,20 +214,8 @@ def collate_metadata(metadata_dict):
             generate_collated_metadata(metadata_dict), key=count_input_paths
         )
     )
-    meta_se = tuple(
-        g for k, g in sorted(
-            (k, tuple(g)) for k, g in groupby(
-                generate_collated_metadata(metadata_dict), key=count_input_paths
-            )
-        ) if k == 1 
-    )
-    meta_pe = tuple(
-        g for k, g in sorted(
-            (k, tuple(g)) for k, g in groupby(
-                generate_collated_metadata(metadata_dict), key=count_input_paths
-            )
-        ) if k == 2
-    )
+    meta_se = tuple(g for k, g in meta if k == 1)
+    meta_pe = tuple(g for k, g in meta if k == 2)
     return meta_se, meta_pe
 
 
@@ -355,6 +343,8 @@ def get_genotypes(
                 else:
                     metadata_quasar_input_paths_se = []
                 if len(meta_pe) > 0:
+                    print(meta_pe)
+                    print(prepare_quasar_input_params(temp_dir_name, len(meta_pe), pe=False))
                     metadata_quasar_input_paths_pe = pool.starmap(
                         partial(
                             prepare_quasar_input_from_metadata,
