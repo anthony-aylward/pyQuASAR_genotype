@@ -209,13 +209,27 @@ def count_input_paths(metadata_item):
 
 
 def collate_metadata(metadata_dict):
-    return tuple(
+    meta = sorted(
+        (k, tuple(g)) for k, g in groupby(
+            generate_collated_metadata(metadata_dict), key=count_input_paths
+        )
+    )
+    meta_se = tuple(
         g for k, g in sorted(
             (k, tuple(g)) for k, g in groupby(
                 generate_collated_metadata(metadata_dict), key=count_input_paths
             )
-        )
+        ) if k == 1 
     )
+    meta_pe = tuple(
+        g for k, g in sorted(
+            (k, tuple(g)) for k, g in groupby(
+                generate_collated_metadata(metadata_dict), key=count_input_paths
+            )
+        ) if k == 2
+    )
+    return meta_se, meta_pe
+
 
 
 def get_genotypes(
