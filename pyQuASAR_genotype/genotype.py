@@ -214,6 +214,8 @@ def collate_metadata(metadata_dict):
             generate_collated_metadata(metadata_dict), key=count_input_paths
         )
     )
+    print(meta)
+    raise SystemExit()
     meta_se = tuple(g for k, g in meta if k == 1)
     meta_pe = tuple(g for k, g in meta if k == 2)
     return meta_se, meta_pe
@@ -332,9 +334,6 @@ def get_genotypes(
             
             if n_metadata > 0:
                 meta_se, meta_pe = collate_metadata(metadata_dict)
-                print(meta_se)
-                print(meta_pe)
-                raise SystemExit()
                 if len(meta_se) > 0:
                     metadata_quasar_input_paths_se = pool.starmap(
                         partial(
