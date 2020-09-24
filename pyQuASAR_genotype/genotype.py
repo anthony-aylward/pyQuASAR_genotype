@@ -332,6 +332,9 @@ def get_genotypes(
             
             if n_metadata > 0:
                 meta_se, meta_pe = collate_metadata(metadata_dict)
+                print(meta_se)
+                print(meta_pe)
+                raise SystemExit()
                 if len(meta_se) > 0:
                     metadata_quasar_input_paths_se = pool.starmap(
                         partial(
@@ -343,12 +346,10 @@ def get_genotypes(
                 else:
                     metadata_quasar_input_paths_se = []
                 if len(meta_pe) > 0:
-                    print(meta_pe)
-                    print(prepare_quasar_input_params(temp_dir_name, len(meta_pe), pe=False))
                     metadata_quasar_input_paths_pe = pool.starmap(
                         partial(
                             prepare_quasar_input_from_metadata,
-                            **prepare_quasar_input_params(temp_dir_name, len(meta_pe), pe=False)
+                            **prepare_quasar_input_params(temp_dir_name, len(meta_pe), pe=True)
                         ),
                         meta_pe
                     )
