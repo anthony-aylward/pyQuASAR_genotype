@@ -185,7 +185,7 @@ def prepare_quasar_input_from_metadata(
         algorithm_switch_bp=algorithm_switch_bp,
         library_name=library_name,
         algorithm=library_name,
-        temp_dir=library_name
+        temp_dir=temp_dir
     )
 
 
