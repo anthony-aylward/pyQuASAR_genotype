@@ -519,7 +519,7 @@ def main():
     args = parse_arguments()
     if args.query_snps:
         df_fitting = pd.read_table(args.model_fitting_snps, header=None)
-        fitting_coord_set = {(chrom, pos) for chrom, pos in zip(df_fitting.iloc[:,0], df.fitting.iloc[:,2])}
+        fitting_coord_set = {(chrom, pos) for chrom, pos in zip(df_fitting.iloc[:,0], df_fitting.iloc[:,2])}
         df_query = pd.read_table(args.query_snps, header=None)
         df_query_filt = pd.DataFrame(r for i, r in df_query.iterrows() if (r[0], r[2]) not in fitting_coord_set)
         df_combined = pd.concat((df_fitting, df_query_filt)).sort_values([0, 2])
