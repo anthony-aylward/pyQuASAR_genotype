@@ -8,6 +8,7 @@
 import json
 import os
 import os.path
+import pandas as pd
 import pyhg19
 import pyQuASAR
 import seqalign
@@ -32,7 +33,7 @@ def prepare_quasar_input(
     reference_genome_path: str,
     mapping_quality: int,
     blacklist_path: str,
-    model_fitting_snps: str,
+    snps_path: str,
     processes: int,
     memory: int,
     paired_end: bool,
@@ -59,7 +60,7 @@ def prepare_quasar_input(
         Minimum quality score for filtering alignment
     blacklist_path : str
         Path to ENCODE mappability blacklist
-    model_fitting_snps : str
+    snps_path : str
         Path to file containing SNPs to genotype
     processes : int
         Number of processes
@@ -137,11 +138,11 @@ def prepare_quasar_input(
         compressed_pileup_bed_path = f'{intermediate_prefix}.pileup.bed.gz'
         pyQuASAR.write_compressed_pileup_bed(
             sa.samtools_mpileup(
-                positions=model_fitting_snps,
+                positions=snps_path,
                 reference_genome=reference_genome_path
             ),
             compressed_pileup_bed_path,
-            snps_bed_path=model_fitting_snps
+            snps_bed_path=snps_path
         )
     pyQuASAR.bed_to_quasar(compressed_pileup_bed_path)
     quasar_input_file_path = '{}.quasar.in.gz'.format(intermediate_prefix)
@@ -159,7 +160,7 @@ def prepare_quasar_input_from_metadata(
     reference_genome_path: str,
     mapping_quality: int,
     blacklist_path: str,
-    model_fitting_snps: str,
+    snps_path: str,
     processes: int,
     memory: int,
     paired_end: bool,
@@ -176,7 +177,7 @@ def prepare_quasar_input_from_metadata(
         reference_genome_path=reference_genome_path,
         mapping_quality=mapping_quality,
         blacklist_path=blacklist_path,
-        model_fitting_snps=model_fitting_snps,
+        snps_path=snps_path,
         processes=processes,
         memory=memory,
         paired_end=paired_end,
@@ -229,7 +230,7 @@ def get_genotypes(
     reference_genome_path: str,
     mapping_quality: int,
     blacklist_path: str,
-    model_fitting_snps: str,
+    snps_path: str,
     processes: int,
     memory: int,
     skip_preprocessing: bool = False,
@@ -258,7 +259,7 @@ def get_genotypes(
         Minimum quality score for filtering alignment
     blacklist_path : str
         Path to ENCODE mappability blacklist
-    model_fitting_snps : str
+    snps_path : str
         Path to file containing SNPs to genotype
     processes : int
         Number of processes
@@ -295,7 +296,7 @@ def get_genotypes(
             'reference_genome_path': reference_genome_path,
             'mapping_quality': mapping_quality,
             'blacklist_path': blacklist_path,
-            'model_fitting_snps': model_fitting_snps,
+            'snps_path': snps_path,
             'processes': max(1, int(processes / n)),
             'memory': memory / min(processes, n),
             'paired_end': pe,
@@ -473,8 +474,7 @@ def parse_arguments():
     quasar_group.add_argument(
         '--query-snps',
         metavar='<path/to/snps_file.bed>',
-        default=pyQuASAR.SNPS_BED_PATH,
-        help=f'BED file containing 1KGP SNPs [{pyQuASAR.SNPS_BED_PATH}]'
+        help='BED file containing query SNPs'
     )
     quasar_group.add_argument(
         '--skip-preprocessing',
@@ -517,6 +517,18 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
+    if args.query_snps:
+        df_fitting = pd.read_table(args.model_fitting_snps, header=None)
+        fitting_coord_set = {(chrom, pos) for chrom, pos in zip(df_fiting.iloc[:,0], df.fitting.iloc[:,2])}
+        df_query = pd.read_table(args.query_snps, header=None)
+        df_query_filt = pd.DataFrame(r for i, r in df_query.iterrows() if (r[0], r[2]) not in fitting_coord_set)
+        df_combined = pd.concat((df_fitting, df_query_filt)).sort_values([0, 2])
+        with tempfile.NamedTemporaryFile(dir=args.tmp_dir) as temp:
+            temp_file_name = temp.name
+        df_combined.to_csv(temp_file_name, sep='\t', index=False, header=False)
+        snps_path = temp_file_name
+    else:
+        snps_path = args.model_fitting_snps
     vcf = pyQuASAR.genotype_to_vcf(
         get_genotypes(
             args.single_end,
@@ -527,7 +539,7 @@ def main():
             args.reference,
             args.quality,
             args.blacklist,
-            args.model_fitting_snps,
+            snps_path,
             args.processes,
             args.memory,
             skip_preprocessing=args.skip_preprocessing,
@@ -537,7 +549,7 @@ def main():
             temp_dir=args.tmp_dir
         ),
         sample_name=args.sample,
-        snps_bed_path=args.model_fitting_snps,
+        snps_bed_path=snps_path,
         threshold=args.threshold,
         het_only=args.het_only,
         temp_file_dir=args.tmp_dir
@@ -546,6 +558,7 @@ def main():
         vcf = tuple(vcf)
     if args.vcf_chr:
         pyQuASAR.write_split_vcf(vcf, args.vcf_chr)
+    os.remove(temp_file_name)
     if not args.quiet:
         for line in vcf:
             print(line)
