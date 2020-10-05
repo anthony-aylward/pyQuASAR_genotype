@@ -277,7 +277,7 @@ def get_genotypes(
     """
     
     n_single_end = len(single_end)
-    n_paired_end = len(paired_end) / 2
+    n_paired_end = len(paired_end)
     if not metadata:
         metadata_dict = {}
     else:
@@ -325,7 +325,7 @@ def get_genotypes(
                         prepare_quasar_input,
                         **prepare_quasar_input_params(temp_dir_name, n_paired_end, pe=True)
                     ),
-                    (','.join(paired_end[x:x+2]) for x in range(0, n_paired_end, 2))
+                    paired_end
                 )
             else:
                 paired_end_quasar_input_paths = []
@@ -383,7 +383,7 @@ def parse_arguments():
         metavar='<path/to/paired_end_data.{fa/fq/bam}>',
         nargs='+',
         default=[],
-        help='Paths to paired-end FASTQ or BAM files'
+        help='Paths to paired-end FASTQ or BAM files. Paired FASTQ files should be joined by a comma.'
     )
     io_group.add_argument(
         '--metadata',
